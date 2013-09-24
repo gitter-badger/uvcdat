@@ -5664,6 +5664,10 @@ Options:::
     a.clear()
 
 """
+        self.animate.close()
+        self.animate_info=[]
+        self.animate.update_animate_display_list( )
+
         return apply(self.canvas.clear, args)
 
     #############################################################################
@@ -8404,7 +8408,6 @@ class animate_obj_old:
       ##from tkMessageBox import showerror
 
       # Cannot "Run" or "Create" an animation while already creating an animation
-      print "Ok minmax:",min,max
       if self.run_flg == 1: return
       if self.vcs_self.canvas.creating_animation() == 1: return
 
@@ -8443,7 +8446,6 @@ class animate_obj_old:
       self.continents_hold_value = self.vcs_self.canvas.getcontinentstype( )
       self.vcs_self.canvas.setcontinentstype( self.continents_value )
 
-      print "do min max:",do_min_max
       if ( do_min_max == 'yes' ):
          minv = []
          maxv=[]
@@ -8490,7 +8492,7 @@ class animate_obj_old:
               self.vcs_self.canvas.animate_init( save_file )
       else: # ffmpeg stuff
           save_info = self.vcs_self.animate_info
-          animation_info = self.vcs_self.canvas.animate_info()
+          animation_info = self.animate_info_from_python()
           slabs=[]
           templates=[]
           dpys=[]
@@ -8558,12 +8560,22 @@ class animate_obj_old:
 
       self.vcs_self.canvas.UNBLOCK_X_SERVER()
 
-       
+   def animate_info_from_python(self):
+       gtype = []
+       gname = []
+       tmpl = []
+       for i in self.vcs_self.animate_info:
+            d=i[0]
+            tmpl.append(d.template)
+            gtype.append(d.g_type)
+            gname.append(d.g_name)
+       return {"template":tmpl,"gtype":gtype,"gname":gname}
+
    ##############################################################################
    # Save original min and max values    					#
    ##############################################################################
    def save_original_min_max( self ):
-      animation_info = self.vcs_self.canvas.animate_info()
+      animation_info = self.animate_info_from_python()
       self.save_min = {}
       self.save_max = {}
       self.save_legend = {}
@@ -8601,8 +8613,9 @@ class animate_obj_old:
    # Restore min and max values                                                 #
    ##############################################################################
    def restore_min_max( self ):
-      animation_info = self.vcs_self.canvas.animate_info()
-      for i in range(len(self.vcs_self.animate_info)):
+      animation_info = self.animate_info_from_python()
+      try:
+       for i in range(len(self.vcs_self.animate_info)):
          gtype = string.lower(animation_info["gtype"][i])
          if gtype == "boxfill":
             gm=self.vcs_self.getboxfill(animation_info['gname'][i])
@@ -8629,14 +8642,15 @@ class animate_obj_old:
          elif ( gtype == "vector" ):
             gm=self.vcs_self.getvector(animation_info['gname'][i])
             gm.reference = self.save_mean_veloc[i]
-
+      except:
+          pass
    
    ##############################################################################
    # Set the animation min and max values    					#
    ##############################################################################
    def set_animation_min_max( self, min, max, i ):
       from vcs import mkscale, mklabels
-      animation_info = self.vcs_self.canvas.animate_info()
+      animation_info = self.vcs_self.animate_info_from_python()
       gtype = string.lower(animation_info["gtype"][i])
       if gtype == "boxfill":
          gm=self.vcs_self.getboxfill(animation_info['gname'][i])
@@ -8961,15 +8975,17 @@ class animate_obj(animate_obj_old):
 
     def _actualCreate( self, parent=None, min=None, max=None, save_file=None, rate=5., bitrate=None, ffmpegoptions='', axis=0, sender=None):
         alen = None
-        y=vcs.init()
+        if self.canvas is None:  
+            self.canvas=vcs.init()
+        self.canvas.clear()
         dims = self.vcs_self.canvasinfo()
         if dims['height']<500:
             factor = 2
         else:
             factor=1
         if dims["width"]<dims["height"]:
-            y.portrait(width=dims["width"],height=dims["height"])
-        y.setbgoutputdimensions(width = dims['width']*factor,height=dims['height']*factor,units='pixel')
+            self.canvas.portrait(width=dims["width"],height=dims["height"])
+        self.canvas.setbgoutputdimensions(width = dims['width']*factor,height=dims['height']*factor,units='pixel')
         truncated = False
         for I in self.vcs_self.animate_info:
             if alen is None:
@@ -9020,7 +9036,6 @@ class animate_obj(animate_obj_old):
                     maxv.append( max )
              # Set the min an max for each plot in the page. If the same graphics method is used
              # to display the plots, then the last min and max setting of the data set will be used.
-             print "Minmaxs:",minv,maxv
              for i in range(len(self.vcs_self.animate_info)):
                 try:
                    self.set_animation_min_max( minv[i], maxv[i], i )
@@ -9060,7 +9075,6 @@ class animate_obj(animate_obj_old):
                 frameArgs.append(args)
             self.allArgs.append(frameArgs)
 
-        self.canvas = y
         if sender is None:
             for i in xrange(len(self.allArgs)):
                 self.renderFrame(i)
